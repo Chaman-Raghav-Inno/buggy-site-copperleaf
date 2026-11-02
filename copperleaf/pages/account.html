@@ -1,0 +1,22 @@
+<p><a href="/accounts">← All accounts</a></p>
+<p id="loading" class="muted">Loading…</p>
+<div id="account" hidden>
+  <header class="section-head acct-head">
+    <div><h1 id="ac-name"></h1><p class="muted" id="ac-number"></p></div>
+    <dl class="facts" id="ac-facts"></dl>
+  </header>
+  <form id="ac-filters" class="filters card" novalidate role="search">
+    <div class="field grow"><label for="ac-q">Search</label><input id="ac-q" type="search" placeholder="e.g. Tesco"></div>
+    <div class="field"><label for="ac-from">From</label><input id="ac-from" type="date"></div>
+    <div class="field"><label for="ac-to">To</label><input id="ac-to" type="date"></div>
+    <div class="field"><label for="ac-sort">Sort by</label><select id="ac-sort"><option value="date">Newest first</option><option value="amount">Largest amount first</option></select></div>
+  </form>
+  <div class="section-head"><p id="ac-count" class="muted" role="status" aria-live="polite"></p><p class="muted"><span id="ac-in"></span> · <span id="ac-out"></span> · <a id="ac-csv">Download CSV</a></p></div>
+  <div class="table-wrap">
+    <table class="table txn-table" aria-label="Transactions">
+      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+      <tbody id="ac-rows"></tbody>
+    </table>
+  </div>
+  <nav class="pager" aria-label="Pages"><button type="button" id="ac-prev" class="btn btn-ghost btn-small">Newer</button><span id="ac-page"></span><button type="button" id="ac-next" class="btn btn-ghost btn-small">Older</button></nav>
+</div>

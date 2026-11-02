@@ -1,0 +1,25 @@
+<h1>Move money</h1>
+<p id="loading" class="muted">Loading…</p>
+<div id="transfer" class="grid-2" hidden>
+  <form id="tf-form" class="card" novalidate>
+    <div class="field"><label for="tf-from">From</label><select id="tf-from"></select></div>
+    <div class="field"><label for="tf-to">To</label><select id="tf-to"></select></div>
+    <div class="field-row">
+      <div class="field"><label for="tf-amount">Amount (€)</label><input id="tf-amount" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+      <div class="field"><label for="tf-date">Date</label><input id="tf-date" type="date"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="tf-repeat">How often</label><select id="tf-repeat"><option value="once">Just once</option><option value="monthly">Every month</option></select></div>
+      <div class="field"><label for="tf-ref">Reference</label><input id="tf-ref" maxlength="35" autocomplete="off"><p class="hint" id="tf-ref-count">0 / 35</p></div>
+    </div>
+    <p id="tf-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Review</button>
+  </form>
+  <section id="tf-review" class="card" hidden>
+    <h2>Check and confirm</h2>
+    <dl class="facts" id="tf-summary"></dl>
+    <p id="tf-error" class="msg error" role="alert"></p>
+    <div class="actions"><button type="button" id="tf-confirm" class="btn">Confirm</button><button type="button" id="tf-edit" class="btn btn-ghost">Change</button></div>
+  </section>
+  <section id="tf-done" class="card" hidden></section>
+</div>

@@ -1,0 +1,27 @@
+<h1>Copper Card</h1>
+<p id="loading" class="muted">Loading…</p>
+<div id="card" class="grid-2" hidden>
+  <div class="stack">
+    <div class="bank-card" id="cd-visual">
+      <p class="bank-card-name">Copperleaf · <span id="cd-name"></span></p>
+      <p class="bank-card-number" id="cd-number"></p>
+      <div class="bank-card-row"><span id="cd-holder"></span><span>Expires <strong id="cd-expiry"></strong></span></div>
+      <p class="bank-card-frozen" id="cd-frozen" hidden>Frozen</p>
+    </div>
+    <section class="card">
+      <p id="cd-status"></p>
+      <button type="button" id="cd-freeze" class="btn"></button>
+      <p class="hint">A frozen card can't be used for anything until you unfreeze it.</p>
+    </section>
+  </div>
+  <div class="stack">
+    <section class="card"><h2>Balance and payments</h2><dl class="facts" id="cd-facts"></dl><p><a href="/account?id=3">See card transactions</a></p></section>
+    <form id="cd-form" class="card" novalidate>
+      <h2>Card settings</h2>
+      <label class="check"><input type="checkbox" id="cd-online"> Allow online and phone payments</label>
+      <div class="field"><label for="cd-limit">Monthly spending limit (€50 to €2,000)</label><input id="cd-limit" inputmode="decimal" autocomplete="off"></div>
+      <p id="cd-msg" class="msg" role="status"></p>
+      <button type="submit" class="btn btn-ghost">Save settings</button>
+    </form>
+  </div>
+</div>

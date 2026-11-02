@@ -1,0 +1,31 @@
+<h1>Staff desk</h1>
+<section class="section">
+  <h2>Card disputes</h2>
+  <div class="table-wrap">
+    <table class="table" aria-label="Disputes">
+      <thead><tr><th>Opened</th><th>Payment</th><th>Customer's reason</th><th>Status</th><th></th></tr></thead>
+      <tbody id="sf-rows"></tbody>
+    </table>
+  </div>
+  <p id="sf-msg" class="msg" role="status"></p>
+</section>
+<section class="section grid-2">
+  <form id="od-form" class="card" novalidate>
+    <h2>Arranged overdraft</h2>
+    <p id="od-who" class="muted"></p>
+    <div class="field"><label for="od-amount">Overdraft limit (€)</label><input id="od-amount" inputmode="decimal" autocomplete="off"></div>
+    <p id="od-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Save limit</button>
+  </form>
+</section>
+<dialog id="sf-dialog" aria-labelledby="sf-dialog-title">
+  <form id="sf-reject" method="dialog" novalidate>
+    <h2 id="sf-dialog-title">Reject this dispute</h2>
+    <div class="field"><label for="sf-reply">Reply to the customer</label><textarea id="sf-reply" rows="3" maxlength="500"></textarea></div>
+    <div class="field"><label for="sf-internal">Internal note (staff only)</label><textarea id="sf-internal" rows="2" maxlength="500"></textarea></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" data-value="back">Back</button>
+      <button type="button" class="btn btn-danger" data-value="reject">Reject</button>
+    </div>
+  </form>
+</dialog>

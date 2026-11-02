@@ -1,0 +1,11 @@
+<h1>Disputes</h1>
+<div class="grid-2">
+  <form id="dp-form" class="card" novalidate>
+    <h2>Dispute a card payment</h2>
+    <div class="field"><label for="dp-txn">Card payment</label><select id="dp-txn"></select></div>
+    <div class="field"><label for="dp-reason">What went wrong?</label><textarea id="dp-reason" rows="4" maxlength="500"></textarea></div>
+    <p id="dp-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Open a dispute</button>
+  </form>
+  <section class="card"><h2>Your disputes</h2><ul id="dp-list" class="dispute-list"></ul></section>
+</div>

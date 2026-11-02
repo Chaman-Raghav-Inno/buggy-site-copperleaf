@@ -1,0 +1,17 @@
+<h1>Scheduled payments</h1>
+<div class="tiles"><div class="tile"><p class="tile-label">Due in the next 30 days</p><p class="tile-value" id="sc-total">–</p></div></div>
+<div class="table-wrap">
+  <table class="table sc-table" aria-label="Scheduled payments">
+    <thead><tr><th>To</th><th>From</th><th class="num">Amount</th><th>How often</th><th>Next payments</th><th>Status</th><th></th></tr></thead>
+    <tbody id="sc-rows"></tbody>
+  </table>
+</div>
+<p class="actions"><a class="btn" href="/transfer">Set up a payment</a></p>
+<dialog id="sc-dialog" aria-labelledby="sc-dialog-title">
+  <h2 id="sc-dialog-title">Cancel this payment?</h2>
+  <p id="sc-dialog-text"></p>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-ghost" data-value="keep">Keep it</button>
+    <button type="button" class="btn btn-danger" data-value="cancel">Cancel payment</button>
+  </div>
+</dialog>
