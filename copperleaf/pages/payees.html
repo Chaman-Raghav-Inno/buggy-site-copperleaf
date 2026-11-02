@@ -1,0 +1,23 @@
+<h1>Payees</h1>
+<div class="grid-2">
+  <section class="card">
+    <h2>People and companies you pay</h2>
+    <ul id="py-list" class="payee-list"></ul>
+  </section>
+  <form id="py-form" class="card" novalidate>
+    <h2>Add a payee</h2>
+    <div class="field"><label for="py-name">Name</label><input id="py-name" maxlength="60" autocomplete="off"></div>
+    <div class="field"><label for="py-iban">IBAN</label><input id="py-iban" maxlength="42" autocomplete="off" spellcheck="false" placeholder="e.g. DE89 3704 0044 0532 0130 00"></div>
+    <div class="field"><label for="py-ref">Default reference (optional)</label><input id="py-ref" maxlength="18" autocomplete="off"></div>
+    <p id="py-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Add payee</button>
+  </form>
+</div>
+<dialog id="py-dialog" aria-labelledby="py-dialog-title">
+  <h2 id="py-dialog-title">Delete this payee?</h2>
+  <p id="py-dialog-text"></p>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-ghost" data-value="keep">Keep</button>
+    <button type="button" class="btn btn-danger" data-value="delete">Delete</button>
+  </div>
+</dialog>

@@ -1,0 +1,18 @@
+<h1>Settings</h1>
+<div class="grid-2">
+  <form id="se-form" class="card" novalidate>
+    <h2>Low-balance alerts</h2>
+    <label class="check"><input type="checkbox" id="se-alerts"> Email me when my Everyday Account drops below</label>
+    <div class="field"><label for="se-threshold">Alert amount (€)</label><input id="se-threshold" inputmode="decimal" autocomplete="off"></div>
+    <div class="field"><label for="se-email">Send alerts to</label><input id="se-email" type="email" autocomplete="email"></div>
+    <p id="se-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Save</button>
+  </form>
+  <form id="pw-form" class="card" novalidate>
+    <h2>Change password</h2>
+    <div class="field"><label for="pw-current">Current password</label><input id="pw-current" type="password" autocomplete="current-password"></div>
+    <div class="field"><label for="pw-new">New password</label><input id="pw-new" type="password" autocomplete="new-password"><p class="hint">At least 10 characters, including a number.</p></div>
+    <p id="pw-msg" class="msg" role="status"></p>
+    <button type="submit" class="btn">Change password</button>
+  </form>
+</div>
