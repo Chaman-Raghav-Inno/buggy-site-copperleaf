@@ -1,4 +1,4 @@
-"""Copperleaf's server-side planted bugs stay planted (BUGS.md) and nothing it serves gives them away."""
+"""Planted bugs stay planted, v2 fixes stay fixed (BUGS.md), and nothing served gives a bug away."""
 
 import datetime as dt
 import http.cookiejar
@@ -98,27 +98,29 @@ def test_seed_balances():
 def test_accounts_and_transactions(nora):
     everyday = nora.get("/api/overview")[1]["accounts"][0]
     assert everyday["pending"] < 0 and everyday["available"] == everyday["balance"] + 500  # BUG-02
-    assert nora.get("/api/accounts/1/transactions", q="tesco")[1]["count"] == 0  # BUG-03
-    assert nora.get("/api/accounts/1/transactions", q="TESCO")[1]["count"] > 0
+    tesco = nora.get("/api/accounts/1/transactions", q="TESCO")[1]["count"]
+    assert tesco > 0 and nora.get("/api/accounts/1/transactions", q="tesco")[1]["count"] == tesco  # BUG-03 fixed
     latest = nora.get("/api/accounts/1/transactions")[1]["transactions"][2]["date"]
     assert nora.get("/api/accounts/1/transactions", **{"from": latest, "to": latest})[1]["count"] == 0  # BUG-04
     top = nora.get("/api/accounts/1/transactions", sort="amount")[1]["transactions"][0]
     assert top["amount"] == -950  # BUG-07: the €2,850 salary should come first
     status, raw, _ = nora.request("/api/accounts/1.csv")
-    assert ',"TESCO STORES 2231",42.18,' in raw.decode()  # BUG-06
+    assert ',"TESCO STORES 2231",-42.18,' in raw.decode()  # BUG-06 fixed
     amazon = next(t for t in nora.get("/api/accounts/3/transactions", q="AMAZON")[1]["transactions"])
     assert amazon["amount"] == -46.0 and nora.get("/api/accounts/3/transactions", q="fee")[1]["count"] == 0  # BUG-40
     assert nora.get("/api/accounts/99/transactions")[0] == 404
 
 
 def test_transfers(nora):
-    assert nora.pay("account:2", 10.005)[0] == 200  # BUG-08
-    assert nora.pay("account:1", 25)[0] == 200  # BUG-14
+    assert nora.pay("account:2", 10.005)[0] == 400  # BUG-08 fixed
+    assert nora.pay("account:2", 10.05)[0] == 200
+    assert nora.pay("account:1", 25)[0] == 400  # BUG-14 fixed
     assert nora.pay("account:1", 50, source=2)[0] == 200
     savings = nora.get("/api/accounts/2/transactions", q="fee")[1]
     assert savings["count"] == 0  # BUG-11: that was the 4th withdrawal this month
-    status, result = nora.pay("account:1", 9000, source=2)
-    assert status == 200 and nora.get("/api/overview")[1]["accounts"][1]["balance"] < 0  # BUG-12
+    assert nora.pay("account:1", 9000, source=2)[0] == 400  # BUG-12 fixed
+    assert nora.get("/api/overview")[1]["accounts"][1]["balance"] >= 0
+    assert nora.pay("account:1", 8000, source=2)[0] == 200  # funds the payee payments below
     status, result = nora.pay("payee:2", 20, reference="Holiday deposit for Lisbon")
     assert result["transaction"]["reference"] == "Holiday deposit fo"  # BUG-15
     assert nora.pay("payee:2", 4000)[0] == nora.pay("payee:2", 3000)[0] == 200  # BUG-09
@@ -136,7 +138,7 @@ def test_transfers(nora):
 
 def test_payees(nora):
     assert nora.post("/api/payees", {"name": "Bad", "iban": "DE89370400440532013001"})[0] == 200  # BUG-16
-    assert nora.post("/api/payees", {"name": "Twice", "iban": "GB82WEST12345698765432"})[0] == 200  # BUG-17
+    assert nora.post("/api/payees", {"name": "Twice", "iban": "GB82WEST12345698765432"})[0] == 400  # BUG-17 fixed
     assert nora.post("/api/payees", {"name": "Junk", "iban": "nope"})[0] == 400
     nora.post("/api/payees/3/delete")
     gym = next(s for s in nora.get("/api/scheduled")[1]["items"] if s["to"] == "payee:3")
@@ -149,21 +151,23 @@ def test_scheduled():
     assert dates == ["2027-01-31", "2027-03-31", "2027-05-31"]  # BUG-19: February and April are skipped
 
 
-def test_next_30_days_counts_cancelled(nora):  # BUG-21
+def test_next_30_days_counts_active_only(nora):  # BUG-21 fixed
     items = nora.get("/api/scheduled")[1]
     horizon = day(30)
     active = sum(
         s["amount"] * sum(1 for d in s["dates"] if d <= horizon) for s in items["items"] if s["status"] == "active"
     )
-    assert items["next30"] == round(active + 300, 2)
+    assert items["next30"] == round(active, 2)
 
 
 def test_card(nora):
     card = nora.get("/api/card")[1]
-    assert card["minimum"] == 60.0  # BUG-24: 3% of the €690 statement is €20.70, so €25
+    assert card["minimum"] == 25.0  # BUG-24 fixed: 3% of the €690 statement is €20.70, so €25
     nora.post("/api/card/freeze", {"frozen": True})
-    after = nora.post("/api/card/settings", {"online": True, "limit": 5000})[1]
-    assert after["limit"] == 5000  # BUG-23
+    assert nora.post("/api/card/settings", {"online": True, "limit": 5000})[0] == 400  # BUG-23 fixed
+    assert nora.post("/api/card/settings", {"online": True, "limit": 49})[0] == 400
+    after = nora.post("/api/card/settings", {"online": True, "limit": 1500})[1]
+    assert after["limit"] == 1500
     assert after["frozen"] is False  # BUG-22
 
 
@@ -172,29 +176,32 @@ def test_statements(nora):
     assert round(savings["opening"] + savings["in"] - savings["out"], 2) != savings["closing"]  # BUG-26
     everyday = nora.get("/api/statements", account=1)[1]
     first = data.month_start(T).isoformat()
-    assert any(t["date"] == first for t in everyday["transactions"])  # BUG-27
+    assert not any(t["date"] == first for t in everyday["transactions"])  # BUG-27 fixed
     status, raw, _ = nora.request("/api/statements.csv?account=2")
-    assert "TESCO" in raw.decode()  # BUG-28
+    assert "TESCO" not in raw.decode() and "Interest" in raw.decode()  # BUG-28 fixed
 
 
 def test_disputes(nora):
     d = nora.get("/api/disputes")[1]
-    assert "3 disputes this year" in d["disputes"][-1]["internal"]  # BUG-37: sent to the customer
+    assert all("internal" not in x for x in d["disputes"])  # BUG-37 fixed: never sent to the customer
     ryanair = next(t for t in d["transactions"] if t["description"] == "RYANAIR")
     assert nora.post("/api/disputes", {"transaction": ryanair["id"], "reason": "x"})[0] == 200  # BUG-29
     open_one = next(x for x in d["disputes"] if x["status"] == "open")
-    assert nora.post("/api/disputes", {"transaction": open_one["transaction"], "reason": "x"})[0] == 200  # BUG-30
+    assert nora.post("/api/disputes", {"transaction": open_one["transaction"], "reason": "x"})[0] == 400  # BUG-30 fixed
     refund = next(t for t in d["transactions"] if t["amount"] > 0)
     assert nora.post("/api/disputes", {"transaction": refund["id"], "reason": "x"})[0] == 200  # BUG-31
 
 
 def test_settings_and_password(base_url, nora):
     assert nora.post("/api/settings", {"alert_threshold": 50, "email": "nora@", "alerts": True})[0] == 200  # BUG-35
-    assert nora.post("/api/password", {"current": data.PASSWORD, "new": "abc"})[0] == 200  # BUG-32
+    assert nora.post("/api/password", {"current": data.PASSWORD, "new": "abc"})[0] == 400  # BUG-32 fixed
+    assert nora.post("/api/password", {"current": data.PASSWORD, "new": "longenough"})[0] == 400
+    assert nora.post("/api/password", {"current": data.PASSWORD, "new": "Copper2027!x"})[0] == 200
     other = Client(base_url)
-    for _ in range(6):
+    for _ in range(4):
         assert other.login("omar", "wrong") == 401
-    assert other.login("omar") == 200  # BUG-34
+    assert other.login("omar", "wrong") == 423
+    assert other.login("omar") == 423  # BUG-34 fixed: locked for 15 minutes
 
 
 def test_staff(base_url):
@@ -204,7 +211,9 @@ def test_staff(base_url):
     open_one = next(x for x in queue["disputes"] if x["status"] == "open")
     assert omar.post(f"/api/staff/disputes/{open_one['id']}", {"action": "reject"})[0] == 400
     omar.post(f"/api/staff/disputes/{open_one['id']}", {"action": "refund"})
-    assert omar.post("/api/staff/overdraft", {"amount": 5000})[1]["customer"]["overdraft"] == 5000  # BUG-38
+    assert omar.post("/api/staff/overdraft", {"amount": 5000})[0] == 400  # BUG-38 fixed
+    assert omar.post("/api/staff/overdraft", {"amount": 2000})[1]["customer"]["overdraft"] == 2000
+    assert "3 disputes this year" in next(x for x in queue["disputes"] if x["status"] == "rejected")["internal"]
     omar.post("/api/logout")
     omar.login("nora")
     assert omar.get("/api/accounts/1/transactions", q="Dispute")[1]["count"] == 1  # BUG-36
