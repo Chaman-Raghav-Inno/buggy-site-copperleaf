@@ -1,7 +1,7 @@
 # buggy-site-copperleaf: Copperleaf Bank
 
 Copperleaf Bank is a demo online bank (accounts and transactions, transfers, payees, scheduled payments, a credit
-card, statements, card disputes, settings, and a staff desk) with **40 functional bugs planted on purpose**, to
+card, statements, card disputes, settings, and a staff desk) with **40 functional bugs planted on purpose** (version 2 fixes 20 of them; see [BUGS.md](BUGS.md)), to
 measure how many the AI QA Scanner finds. It is the sixth benchmark site, after
 [buggy-site](https://github.com/Chaman-Raghav-Inno/buggy-site) (Lumen Goods),
 [buggy-site-taskline](https://github.com/Chaman-Raghav-Inno/buggy-site-taskline) (Taskline),

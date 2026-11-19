@@ -84,7 +84,9 @@ def _date(value, message: str) -> dt.date:
 def _amount(value, message: str = "Enter an amount.") -> float:
     if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1_000_000:
         raise ApiError(400, message)
-    return float(value)  # BUG-08: amounts with more than two decimals are not refused
+    if abs(value * 100 - round(value * 100)) > 1e-6:
+        raise ApiError(400, "Enter an amount in euros and cents.")
+    return float(value)
 
 
 def money(x: float) -> float:
@@ -155,12 +157,17 @@ class Store:
         email = _text(body, "email").lower()
         u = next((u for u in w["users"] if u["email"] == email), None)
         password = body.get("password")
-        # BUG-34: the lockout after 5 wrong passwords is never applied
+        now = dt.datetime.now(dt.UTC).timestamp()
+        if u and u.get("locked_until", 0) > now:
+            raise ApiError(423, "Too many wrong passwords. Logging in is locked for 15 minutes.")
         if not (u and isinstance(password, str)) or not hmac.compare_digest(
             u["hash"], data.password_hash(password, bytes.fromhex(u["salt"]))
         ):
             if u:
                 u["failed"] += 1
+                if u["failed"] >= data.LOCKOUT_ATTEMPTS:
+                    u["failed"], u["locked_until"] = 0, now + 15 * 60
+                    raise ApiError(423, "Too many wrong passwords. Logging in is locked for 15 minutes.")
             raise ApiError(401, "Incorrect email or password.")
         u["failed"] = 0
         sess["user"] = u["id"]
@@ -215,7 +222,7 @@ class Store:
         arg = {k: (query.get(k) or [""])[0] for k in query}
         rows = [t for t in w["transactions"] if t["account"] == aid and t["type"] != "opening"]
         if arg.get("q"):
-            rows = [t for t in rows if arg["q"].strip() in t["description"]]  # BUG-03: case-sensitive search
+            rows = [t for t in rows if arg["q"].strip().lower() in t["description"].lower()]
         if arg.get("from"):
             rows = [t for t in rows if t["date"] >= str(_date(arg["from"], "Bad start date."))]
         if arg.get("to"):
@@ -250,7 +257,7 @@ class Store:
             rows += self.transactions(sess, aid, query | {"page": [str(p)]})["transactions"]
         lines = ["Date,Description,Amount (EUR),Status"]
         for t in rows:
-            lines.append(f'{t["date"]},"{t["description"]}",{abs(t["amount"]):.2f},{t["status"]}')  # BUG-06: no sign
+            lines.append(f'{t["date"]},"{t["description"]}",{t["amount"]:.2f},{t["status"]}')
         return ("\n".join(lines) + "\n").encode()
 
     # payees
@@ -272,7 +279,8 @@ class Store:
         iban = re.sub(r"\s", "", _text(body, "iban", 60)).upper()
         if not iban_ok(iban):
             raise ApiError(400, "That IBAN isn't valid. Check it and try again.")
-        # BUG-17: a payee with the same IBAN can be added again
+        if any(re.sub(r"\s", "", p["iban"]) == iban for p in w["payees"]):
+            raise ApiError(400, "You already have a payee with that IBAN.")
         pretty = " ".join(iban[i : i + 4] for i in range(0, len(iban), 4))
         now = dt.datetime.combine(dt.date.fromisoformat(w["today"]), dt.datetime.now(dt.UTC).time())
         w["payees"].append(
@@ -311,7 +319,8 @@ class Store:
         if kind == "account":
             dest = self.account(w, int(tid) if tid.isdigit() else 0)
             to_name = dest["name"]
-            # BUG-14: paying an account into itself is not refused
+            if dest["id"] == src["id"]:
+                raise ApiError(400, "Choose a different account to pay into.")
         elif kind == "payee":
             payee = next((p for p in w["payees"] if str(p["id"]) == tid), None)
             if not payee:
@@ -347,7 +356,8 @@ class Store:
             return {"done": "scheduled", "scheduled": item | {"dates": upcoming(item, when)}}
         if src["type"] == "everyday" and amount > self.summary(w, src)["available"]:
             raise ApiError(400, "You don't have enough money available for that.")
-        # BUG-12: savings can go below zero
+        if src["type"] == "savings" and amount > self.balance(w, src["id"]):
+            raise ApiError(400, "You don't have enough money in your savings for that.")
         fee = 0.0  # BUG-11: the €2 fee from the 4th savings withdrawal in a month is never charged
 
         def post(account, description, value, **extra):
@@ -383,7 +393,8 @@ class Store:
         for s in w["scheduled"]:
             dates = upcoming(s, now + dt.timedelta(days=1))
             items.append(s | {"dates": dates, "next": dates[0] if dates else s["next"]})
-            total += s["amount"] * sum(1 for d in dates if d <= horizon)  # BUG-21: cancelled payments are counted
+            if s["status"] == "active":
+                total += s["amount"] * sum(1 for d in dates if d <= horizon)
         names = {a["id"]: a["name"] for a in w["accounts"]}
         return {"items": [i | {"from_name": names[i["from"]]} for i in items], "next30": money(total)}
 
@@ -403,7 +414,7 @@ class Store:
         w = self.signed_in(sess)
         a = self.account(w, 3)
         s = self.summary(w, a)
-        minimum = max(data.MIN_PAYMENT_FLOOR, data.MIN_PAYMENT_RATE * a["credit_limit"])  # BUG-24: of the balance
+        minimum = max(data.MIN_PAYMENT_FLOOR, data.MIN_PAYMENT_RATE * a["statement_balance"])
         return w["card"] | {
             "owed": -s["balance"],
             "available": s["available"],
@@ -420,7 +431,10 @@ class Store:
 
     def card_settings(self, sess: dict, body: dict) -> dict:
         w = self.signed_in(sess)
-        limit = _amount(body.get("limit"), "Enter a monthly limit.")  # BUG-23: €50 to €2,000 isn't enforced
+        limit = _amount(body.get("limit"), "Enter a monthly limit.")
+        low, high = data.CARD_LIMIT_RANGE
+        if not low <= limit <= high:
+            raise ApiError(400, "The monthly limit must be between €50 and €2,000.")
         # BUG-22: the settings are rebuilt from scratch, so saving them unfreezes the card
         w["card"].update(online=bool(body.get("online")), limit=money(limit), frozen=bool(body.get("frozen", False)))
         return self.card(sess)
@@ -443,9 +457,8 @@ class Store:
             if t["account"] == aid
             and t["status"] == "posted"
             and t["type"] != "opening"
-            and start.isoformat() <= t["date"] <= end.isoformat()
+            and start.isoformat() <= t["date"] < end.isoformat()
         ]
-        # BUG-27: the first day of the next month is included
         opening = self.balance(w, aid, start.isoformat())
         money_in = sum(t["amount"] for t in rows if t["amount"] > 0 and t["type"] != "interest")  # BUG-26
         money_out = -sum(t["amount"] for t in rows if t["amount"] < 0)
@@ -463,16 +476,8 @@ class Store:
 
     def statement_csv(self, sess: dict, aid: int, month: str) -> bytes:
         s = self.statement(sess, aid, month)
-        w = self.world(sess)
-        start, end = s["month"] + "-01", data.month_start(dt.date.fromisoformat(s["month"] + "-01"), -1).isoformat()
-        rows = [
-            t
-            for t in w["transactions"]
-            if t["status"] == "posted" and t["type"] != "opening" and start <= t["date"] < end
-        ]
-        # BUG-28: every account's transactions go into the file
         lines = ["Date,Description,Amount (EUR)"] + [
-            f'{t["date"]},"{t["description"]}",{t["amount"]:.2f}' for t in rows
+            f'{t["date"]},"{t["description"]}",{t["amount"]:.2f}' for t in s["transactions"]
         ]
         return ("\n".join(lines) + "\n").encode()
 
@@ -485,7 +490,8 @@ class Store:
             key=lambda t: t["date"],
             reverse=True,
         )
-        return {"disputes": sorted(w["disputes"], key=lambda d: d["opened"], reverse=True), "transactions": card_txns}
+        mine = [{k: v for k, v in d.items() if k != "internal"} for d in w["disputes"]]
+        return {"disputes": sorted(mine, key=lambda d: d["opened"], reverse=True), "transactions": card_txns}
 
     def open_dispute(self, sess: dict, body: dict) -> dict:
         w = self.signed_in(sess)
@@ -497,7 +503,8 @@ class Store:
         if not t:
             raise ApiError(400, "Choose the card payment.")
         # BUG-29: payments older than 120 days can be disputed
-        # BUG-30: the same payment can be disputed twice
+        if any(d["transaction"] == t["id"] for d in w["disputes"]):
+            raise ApiError(400, "You've already disputed that payment.")
         # BUG-31: refunds (money in) can be disputed
         reason = _text(body, "reason", 500)
         if not reason:
@@ -544,8 +551,12 @@ class Store:
             user["hash"], data.password_hash(current, bytes.fromhex(user["salt"]))
         ):
             raise ApiError(400, "Your current password is wrong.")
-        if not isinstance(new, str) or not new:  # BUG-32: the password rules aren't checked
+        if not isinstance(new, str) or not new:
             raise ApiError(400, "Enter a new password.")
+        if len(new) < 10 or not re.search(r"\d", new):
+            raise ApiError(400, "Use at least 10 characters, including a number.")
+        if new == current:
+            raise ApiError(400, "Choose a password that differs from your current one.")
         user["hash"] = data.password_hash(new, bytes.fromhex(user["salt"]))
         return {"ok": True}
 
@@ -604,7 +615,8 @@ class Store:
         amount = body.get("amount")
         if isinstance(amount, bool) or not isinstance(amount, int | float) or amount < 0:
             raise ApiError(400, "Enter an overdraft limit.")
-        # BUG-38: limits above €2,000 are accepted
+        if amount > data.OVERDRAFT_MAX:
+            raise ApiError(400, "The overdraft limit can't be more than €2,000.")
         self.account(w, 1)["overdraft"] = money(amount)
         return self.staff(sess)
 

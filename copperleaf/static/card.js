@@ -12,7 +12,7 @@
       $('#cd-number').textContent = `•••• •••• •••• ${c.last4}`;
       $('#cd-holder').textContent = c.holder;
       const d = new Date(c.expiry + '-01T00:00:00Z');
-      $('#cd-expiry').textContent = `${String(d.getUTCMonth()).padStart(2, '0')}/${String(d.getUTCFullYear()).slice(2)}`;
+      $('#cd-expiry').textContent = `${String(d.getUTCMonth() + 1).padStart(2, '0')}/${String(d.getUTCFullYear()).slice(2)}`;
       $('#cd-frozen').hidden = !c.frozen;
       $('#cd-visual').classList.toggle('frozen', c.frozen);
       $('#cd-status').innerHTML = c.frozen ? '<strong>Your card is frozen.</strong>' : 'Your card is active.';

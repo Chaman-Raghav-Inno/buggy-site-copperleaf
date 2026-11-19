@@ -27,6 +27,8 @@
       const raw = $('#tf-amount').value.trim();
       const amount = Number(raw);
       if (!raw || !(amount > 0)) return F.say(msg, 'Enter an amount, like 25.50.', 'error');
+      if (!/^\d+(\.\d{1,2})?$/.test(raw)) return F.say(msg, 'Enter an amount in euros and cents.', 'error');
+      if ($('#tf-to').value === `account:${$('#tf-from').value}`) return F.say(msg, 'Choose a different account to pay into.', 'error');
       const date = $('#tf-date').value || F.today;
       if (date < F.today) return F.say(msg, 'The date can\'t be in the past.', 'error');
       F.say(msg, '');

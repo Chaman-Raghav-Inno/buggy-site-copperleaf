@@ -17,6 +17,10 @@
       const q = query();
       q.set('page', page);
       const r = await F.api(`/api/accounts/${id}/transactions?${q.toString()}`);
+      if (!r.ok) {
+        $('#loading').textContent = r.data.error || 'We couldn\'t find that account.';
+        return false;
+      }
       const d = r.data;
       const a = d.account;
       document.title = `${a.name} · Copperleaf Bank`;
@@ -48,7 +52,7 @@
     ['#ac-from', '#ac-to', '#ac-sort'].forEach((s) => $(s).addEventListener('change', () => { page = 1; load(); }));
     $('#ac-prev').addEventListener('click', () => { page -= 1; load(); });
     $('#ac-next').addEventListener('click', () => { page += 1; load(); });
-    await load();
+    if (await load() === false) return;
     $('#loading').hidden = true;
     $('#account').hidden = false;
   };

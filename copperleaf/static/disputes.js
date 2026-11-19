@@ -11,7 +11,7 @@
       $('#dp-txn').innerHTML = '<option value="">Choose a payment</option>' + data.transactions.map((t) => `<option value="${t.id}">${F.date(t.date)} · ${esc(t.description)} · ${F.signed(t.amount)}</option>`).join('');
       $('#dp-list').innerHTML = data.disputes.map((d) => `<li><div class="section-head"><strong>${esc(d.description)} · ${F.eur(Math.abs(d.amount))}</strong>${F.status(d.status)}</div>
           <p class="muted small">Payment on ${F.date(d.date)} · opened ${F.date(d.opened)}</p><p>${esc(d.reason)}</p>
-          ${d.reply ? `<p class="reply"><strong>Copperleaf:</strong> ${esc(d.reply)}${d.internal ? `<br><span class="muted small">${esc(d.internal)}</span>` : ''}</p>` : ''}</li>`).join('')
+          ${d.reply ? `<p class="reply"><strong>Copperleaf:</strong> ${esc(d.reply)}</p>` : ''}</li>`).join('')
         || '<li class="muted">No disputes.</li>';
     }
 

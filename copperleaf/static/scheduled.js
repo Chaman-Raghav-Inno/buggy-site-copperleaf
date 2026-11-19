@@ -22,7 +22,7 @@
       const b = e.target.closest('[data-index]');
       if (!b) return;
       const shown = data.items.find((s) => String(s.id) === b.dataset.show);
-      picked = data.items[Number(b.dataset.index)];
+      picked = shown;
       $('#sc-dialog-text').textContent = `${F.eur(shown.amount)} to ${shown.to_name} won't be paid.`;
       $('#sc-dialog').returnValue = '';
       $('#sc-dialog').showModal();
