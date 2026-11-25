@@ -7,6 +7,7 @@ Each visitor (cookie) gets a private copy of the demo world, kept in memory, so 
 other's changes. Logging in as the customer or the staff member in the same browser shares that world.
 """
 
+import copy
 import datetime as dt
 import hmac
 import html
@@ -57,6 +58,22 @@ PAGES = {
     "/settings": ("settings", "Settings", "customer"),
     "/staff": ("staff", "Staff desk", "staff"),
 }
+
+
+RESET_PATH = "/__bench/reset"  # benchmark only: puts every visitor's data back to the seed (README, "Benchmark reset")
+RESET_HEADER = "X-Bench-Token"
+RESET_ENV = "BENCH_RESET_TOKEN"
+RESET_TOKEN_MIN = 16
+
+
+def bench_token(env: dict[str, str]) -> str | None:
+    """The reset token from the environment; unset or shorter than 16 characters leaves the reset off."""
+    token = (env.get(RESET_ENV) or "").strip()
+    return token if len(token) >= RESET_TOKEN_MIN else None
+
+
+def token_ok(sent: str | None, token: str | None) -> bool:
+    return bool(token) and hmac.compare_digest((sent or "").encode(), token.encode())
 
 
 class ApiError(Exception):
@@ -116,6 +133,13 @@ class Store:
         self.lock = threading.Lock()
         self.sessions: OrderedDict[str, dict] = OrderedDict()
 
+    def reset(self) -> int:
+        """Back to the seed: every session, and the data it holds, is dropped; the next visit gets a fresh copy.
+        Returns how many sessions there were."""
+        cleared = len(self.sessions)
+        self.sessions.clear()
+        return cleared
+
     def session(self, sid: str | None) -> tuple[str, dict]:
         if sid and sid in self.sessions:
             self.sessions.move_to_end(sid)
@@ -129,7 +153,7 @@ class Store:
     @staticmethod
     def world(sess: dict) -> dict:
         if sess["world"] is None:
-            sess["world"] = data.world(today())
+            sess["world"] = copy.deepcopy(data.world(today()))  # shares nothing with the seed
         return sess["world"]
 
     def user(self, sess: dict) -> dict | None:
@@ -655,7 +679,7 @@ def render(path: str, store: Store, sess: dict, status_page: str | None = None) 
     return out.encode()
 
 
-def make_handler(store: Store | None = None):
+def make_handler(store: Store | None = None, reset_token: str | None = None):
     store = store or Store()
     static = {f.name: f for f in STATIC_DIR.iterdir() if f.is_file() and f.suffix in STATIC_TYPES}
 
@@ -723,6 +747,10 @@ def make_handler(store: Store | None = None):
             path = url.path.rstrip("/") or "/"
             query = parse_qs(url.query)
             try:
+                if path == RESET_PATH and method == "POST" and token_ok(self.headers.get(RESET_HEADER), reset_token):
+                    with store.lock:
+                        cleared = store.reset()
+                    return self._json(200, {"ok": True, "cleared_sessions": cleared})
                 if path == "/healthz":
                     return self._send(200, b"ok", "text/plain")
                 if path == "/robots.txt":
@@ -809,6 +837,6 @@ def make_handler(store: Store | None = None):
 def serve(env: dict[str, str] | None = None) -> None:
     env = dict(os.environ if env is None else env)
     port = int(env.get("PORT", "8085"))
-    httpd = ThreadingHTTPServer(("0.0.0.0", port), make_handler())
+    httpd = ThreadingHTTPServer(("0.0.0.0", port), make_handler(reset_token=bench_token(env)))
     print(f"Copperleaf Bank listening on :{port}", flush=True)
     httpd.serve_forever()
