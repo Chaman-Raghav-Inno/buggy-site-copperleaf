@@ -35,6 +35,19 @@ Standard library only (Python 3.11+); no install step.
 New service → GitHub repo → this repository, then **Generate domain** under Networking. `railway.json` sets the
 start command and health check (`/healthz`); no variables or volume are needed. Avoid redeploying while a scan runs.
 
+## Benchmark reset
+
+`POST /__bench/reset` puts the site back to its seed data, so every benchmark scan starts from the same place: every
+session, and whatever was changed in it, is dropped, and the next visit gets a fresh copy. The planted bugs live in
+the code, so they are untouched.
+
+It is off unless `BENCH_RESET_TOKEN` is set (16 characters or more), and it needs that token in an `X-Bench-Token`
+header; without it the path behaves like any unknown page. Never commit the token.
+
+```bash
+curl -fsS -X POST -H "X-Bench-Token: $BENCH_RESET_TOKEN" https://<site>/__bench/reset
+```
+
 ## Development
 
 ```sh
